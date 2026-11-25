@@ -99,9 +99,10 @@ jobs:
           OUT_NAME="PDF_Eolgae_${VERSION}_${ASSET_SUFFIX}"
           /tmp/dmgvenv/bin/dmgbuild -s scripts/dmg_settings.py \
             -D app="$APP_PATH" \
+            -D app_name="PDF Eolgae.app" \
             -D background="apps/desktop/src-tauri/dmg/dmg-background.png" \
             -D icon="apps/desktop/src-tauri/icons/icon.icns" \
-            "PDF Eolgae" "$OUT_NAME"
+            "PDF 얼개" "$OUT_NAME"
           gh release upload "$TAG" "$OUT_NAME" --clobber
 
   build-windows:

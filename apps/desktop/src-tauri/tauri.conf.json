@@ -50,6 +50,10 @@
       "minimumSystemVersion": "11.0",
       "signingIdentity": "-",
       "hardenedRuntime": false,
+      "files": {
+        "Resources/ko.lproj/InfoPlist.strings": "macos-lproj/ko.lproj/InfoPlist.strings",
+        "Resources/en.lproj/InfoPlist.strings": "macos-lproj/en.lproj/InfoPlist.strings"
+      },
       "dmg": {
         "background": "dmg/dmg-background.png",
         "windowSize": {
@@ -73,7 +77,8 @@
         "displayLanguageSelector": false,
         "installerIcon": "icons/icon.ico",
         "headerImage": "nsis/header.bmp",
-        "sidebarImage": "nsis/sidebar.bmp"
+        "sidebarImage": "nsis/sidebar.bmp",
+        "installerHooks": "nsis/hooks.nsh"
       }
     }
   }
