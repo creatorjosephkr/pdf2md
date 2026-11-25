@@ -1,3 +1,6 @@
+<img width="200" height="200" alt="app-icon" src="https://github.com/user-attachments/assets/c4c746fa-3bc1-4546-8c39-72907b264335" />
+
+
 # PDF 얼개 (PDF Eolgae) — 학술 PDF → 마크다운 · RTF 변환기
 
 학술 논문 및 교재 PDF의 **2단 읽기 순서 · LaTeX 수식 · 병합 표 · 그림 크롭 · Callout 박스** 구조를 온전히 분석하여 깔끔한 **학술 마크다운(`.md`)**과 서식이 포함된 **RTF(`.rtf`)** 문서로 변환하는 100% 로컬 오픈소스 데스크톱 앱 & Python 변환 엔진입니다.
@@ -12,6 +15,16 @@
 * **GitHub 릴리즈 업데이트 체크**: 앱 상단 버전 버튼으로 [GitHub Releases](https://github.com/creatorjosephkr/pdf2md/releases) 최신 버전을 확인하고 설치 파일을 다운로드할 수 있습니다.
 
 자세한 아키텍처는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)를 참고하세요.
+
+<img width="2984" height="2144" alt="image" src="https://github.com/user-attachments/assets/e7186101-abbe-4025-8138-cf43a03bb7be" />
+
+<img width="2984" height="2144" alt="image" src="https://github.com/user-attachments/assets/37d560f6-83d6-4879-a198-d2c3d7a5cab2" />
+
+<img width="2984" height="2144" alt="image" src="https://github.com/user-attachments/assets/a3e5c7a1-b72e-4d58-aadd-a39e908c3e8e" />
+
+<img width="2984" height="2144" alt="image" src="https://github.com/user-attachments/assets/bcb76aba-6ffe-4e2a-ba3d-0c3d4896358c" />
+
+
 
 ---
 
