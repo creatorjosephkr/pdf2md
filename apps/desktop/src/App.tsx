@@ -18,6 +18,7 @@ import { DashboardView } from "./components/DashboardView";
 import { StudioView } from "./components/StudioView";
 import { ModelsView } from "./components/ModelsView";
 import { UpdateModal } from "./components/UpdateModal";
+import { SponsorIcon, SponsorModal } from "./components/SponsorModal";
 
 type TabId = "dashboard" | "studio" | "models";
 
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
+  const [showSponsorModal, setShowSponsorModal] = useState<boolean>(false);
 
   const runUpdateCheck = useCallback(
     async (verOverride?: string) => {
@@ -200,8 +202,28 @@ export const App: React.FC = () => {
           </nav>
         </div>
 
-        {/* Sidecar Engine Status Pill & Update Check */}
+        {/* Sidecar Engine Status Pill, Update Check & Sponsor */}
         <div className="flex items-center gap-2.5 text-xs">
+          {connecting ? (
+            <span className="inline-flex items-center gap-1.5 text-slate-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
+              로컬 엔진 연결 중...
+            </span>
+          ) : health ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              엔진 온라인 · {health.hardware.accelerator_label}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void checkHealth()}
+              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 cursor-pointer"
+            >
+              엔진 오프라인 — 재연결 시도
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -227,25 +249,15 @@ export const App: React.FC = () => {
               : `v${appVersion}`}
           </button>
 
-          {connecting ? (
-            <span className="inline-flex items-center gap-1.5 text-slate-500">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
-              로컬 엔진 연결 중...
-            </span>
-          ) : health ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              엔진 온라인 · {health.hardware.accelerator_label}
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void checkHealth()}
-              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 cursor-pointer"
-            >
-              엔진 오프라인 — 재연결 시도
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowSponsorModal(true)}
+            className="inline-flex items-center justify-center bg-transparent p-1 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+            title="후원하기"
+            aria-label="후원하기"
+          >
+            <SponsorIcon className="h-6 w-6" />
+          </button>
         </div>
       </header>
 
@@ -289,6 +301,11 @@ export const App: React.FC = () => {
         updateInfo={updateInfo}
         onCheckAgain={() => void runUpdateCheck()}
         onClose={() => setShowUpdateModal(false)}
+      />
+
+      <SponsorModal
+        open={showSponsorModal}
+        onClose={() => setShowSponsorModal(false)}
       />
     </div>
   );
