@@ -1,0 +1,106 @@
+name: Release Desktop Installers
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-${GITHUB_REF_NAME}}"
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "PDF 얼개 (PDF Eolgae) ${TAG}" \
+              --generate-notes
+          fi
+
+  build-macos:
+    needs: prepare-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "apps/desktop/src-tauri -> target"
+      - name: Clean Python bytecode caches
+        run: find engine/src -name "__pycache__" -type d -exec rm -rf {} + || true
+      - name: Install frontend dependencies & build macOS arm64 DMG
+        run: |
+          cd apps/desktop
+          npm ci
+          CI=true npx tauri build --bundles dmg
+      - name: Rename and upload macOS arm64 DMG to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          DMG_SRC=$(find apps/desktop/src-tauri/target/release/bundle/dmg -maxdepth 1 -name "*.dmg" | head -n 1)
+          test -n "$DMG_SRC"
+          OUT_NAME="PDF_Eolgae_${VERSION}_macOS_arm64.dmg"
+          cp "$DMG_SRC" "$OUT_NAME"
+          gh release upload "$TAG" "$OUT_NAME" --clobber
+
+  build-windows:
+    needs: prepare-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "apps/desktop/src-tauri -> target"
+      - name: Clean Python bytecode caches
+        shell: bash
+        run: find engine/src -name "__pycache__" -type d -exec rm -rf {} + || true
+      - name: Install frontend dependencies & build Windows x64 NSIS installer
+        run: |
+          cd apps/desktop
+          npm ci
+          npx tauri build --bundles nsis
+      - name: Rename and upload Windows x64 EXE to GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          $exe = Get-ChildItem -Path "apps/desktop/src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          if (-not $exe) { throw "NSIS setup.exe not found" }
+          $outName = "PDF_Eolgae_${env:VERSION}_Windows_x64.exe"
+          Copy-Item -Path $exe.FullName -Destination $outName -Force
+          gh release upload $env:TAG $outName --clobber

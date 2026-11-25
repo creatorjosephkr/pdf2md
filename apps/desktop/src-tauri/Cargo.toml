@@ -1,0 +1,21 @@
+[package]
+name = "pdf-convert-studio"
+version = "1.0.0"
+description = "PDF 얼개 (PDF Eolgae) — Academic PDF to Markdown & RTF Studio"
+authors = ["pdf-convert"]
+edition = "2021"
+
+[lib]
+name = "pdf_convert_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
