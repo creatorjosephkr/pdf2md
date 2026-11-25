@@ -359,6 +359,8 @@ export const App: React.FC = () => {
             session={session}
             baseUrl={baseUrl}
             activeJob={activeJob}
+            engineReady={Boolean(health)}
+            engineStatusMessage={sidecarStatus?.message || null}
             onSessionLoaded={(sess) => {
               setSession(sess);
               setActiveJob(null);

@@ -46,11 +46,15 @@ def test_server_session_convert_reconvert_and_export_markdown(tmp_path: Path) ->
     app = create_app(data_dir=tmp_path / "data")
 
     with TestClient(app) as client:
-        # 1. Open via path
-        sess_res = client.post("/api/sessions/open-path", json={"pdf_path": str(pdf_path)})
+        # 1. Open via path (with display_name override)
+        sess_res = client.post(
+            "/api/sessions/open-path",
+            json={"pdf_path": str(pdf_path), "display_name": "custom_paper_name.pdf"},
+        )
         assert sess_res.status_code == 200
         sess = sess_res.json()
         sid = sess["session_id"]
+        assert sess["file_name"] == "custom_paper_name.pdf"
         assert sess["preflight"]["page_count"] == 2
         assert sess["preflight"]["detected_columns"] == 2
 

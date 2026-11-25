@@ -39,6 +39,7 @@ class ModelsOverviewResponse(BaseModel):
 class OpenPathRequest(BaseModel):
     pdf_path: str
     pages: str | None = None
+    display_name: str | None = None
 
 
 class SessionResponse(BaseModel):

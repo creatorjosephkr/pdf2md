@@ -4,7 +4,7 @@ use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{Manager, RunEvent, State};
 
 #[cfg(target_os = "windows")]
@@ -31,6 +31,12 @@ struct AppMeta {
     arch: &'static str,
     version: &'static str,
     is_tauri: bool,
+}
+
+#[derive(Serialize)]
+struct StagedPdf {
+    staged_path: String,
+    original_name: String,
 }
 
 fn find_available_port() -> u16 {
@@ -565,6 +571,69 @@ fn get_app_meta() -> AppMeta {
 }
 
 #[tauri::command]
+fn stage_pdf_for_engine(app_handle: tauri::AppHandle, source_path: String) -> Result<StagedPdf, String> {
+    let trimmed = source_path.trim();
+    let cleaned = trimmed.strip_prefix("file://").unwrap_or(trimmed);
+    let src = PathBuf::from(cleaned);
+    if !src.is_file() {
+        return Err(format!("선택한 PDF 파일을 찾을 수 없습니다: {}", src.display()));
+    }
+
+    let original_name = src
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "document.pdf".to_string());
+
+    let data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("앱 데이터 폴더 확인 실패: {e}"))?;
+    let inbox_dir = data_dir.join("inbox");
+    fs::create_dir_all(&inbox_dir)
+        .map_err(|e| format!("임시 보관 폴더 생성 실패: {e}"))?;
+
+    // Best-effort cleanup of staged files older than 24 hours
+    if let Ok(entries) = fs::read_dir(&inbox_dir) {
+        let now = SystemTime::now();
+        for entry in entries.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if let Ok(modified) = meta.modified() {
+                    if let Ok(age) = now.duration_since(modified) {
+                        if age.as_secs() > 86_400 {
+                            let _ = fs::remove_file(entry.path());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let safe_name: String = original_name
+        .chars()
+        .map(|c| {
+            if c == '/' || c == '\\' || c == ':' {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let dest = inbox_dir.join(format!("{ts}_{safe_name}"));
+    fs::copy(&src, &dest)
+        .map_err(|e| format!("PDF 파일 복사 실패 (접근 권한을 확인해 주세요): {e}"))?;
+
+    Ok(StagedPdf {
+        staged_path: dest.display().to_string(),
+        original_name,
+    })
+}
+
+#[tauri::command]
 fn reveal_in_folder(path: String) -> Result<(), String> {
     let target = Path::new(&path);
     if !target.exists() {
@@ -647,6 +716,7 @@ pub fn run() {
             get_sidecar_status,
             restart_sidecar,
             get_app_meta,
+            stage_pdf_for_engine,
             reveal_in_folder
         ])
         .build(tauri::generate_context!())

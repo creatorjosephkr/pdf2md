@@ -43,7 +43,12 @@ export async function getEngineBaseUrl(): Promise<string> {
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const base = await getEngineBaseUrl();
-  const res = await fetch(`${base}${path}`, init);
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, init);
+  } catch {
+    throw new Error("로컬 변환 엔진에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+  }
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try {
@@ -59,11 +64,15 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const engineApi = {
   getHealth: () => apiFetch<HealthResponse>("/api/health"),
-  openPdfPath: (pdfPath: string, pages?: string | null) =>
+  openPdfPath: (pdfPath: string, pages?: string | null, displayName?: string | null) =>
     apiFetch<SessionResponse>("/api/sessions/open-path", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pdf_path: pdfPath, pages: pages || null }),
+      body: JSON.stringify({
+        pdf_path: pdfPath,
+        pages: pages || null,
+        display_name: displayName || null,
+      }),
     }),
   uploadPdf: async (file: File, pages?: string | null): Promise<SessionResponse> => {
     const form = new FormData();
@@ -241,6 +250,20 @@ export async function restartSidecar(): Promise<void> {
     await invoke("restart_sidecar");
   } catch {
     // Ignore invoke failure
+  }
+}
+
+export interface StagedPdfResult {
+  staged_path: string;
+  original_name: string;
+}
+
+export async function stagePdfForEngine(sourcePath: string): Promise<StagedPdfResult | null> {
+  if (!isTauriRuntime()) return null;
+  try {
+    return await invoke<StagedPdfResult>("stage_pdf_for_engine", { sourcePath });
+  } catch {
+    return null;
   }
 }
 

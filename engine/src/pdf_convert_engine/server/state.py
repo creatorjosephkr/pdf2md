@@ -97,7 +97,12 @@ class EngineWorkspaceStore:
     def shutdown(self) -> None:
         self._executor.shutdown(wait=False)
 
-    def create_session_from_path(self, pdf_path: Path, pages: str | None = None) -> SessionResponse:
+    def create_session_from_path(
+        self,
+        pdf_path: Path,
+        pages: str | None = None,
+        display_name: str | None = None,
+    ) -> SessionResponse:
         resolved = pdf_path.expanduser().resolve()
         if not resolved.exists() or not resolved.is_file():
             raise FileNotFoundError(f"PDF file not found: {resolved}")
@@ -109,9 +114,10 @@ class EngineWorkspaceStore:
         prange = parse_page_range_str(pages)
         preflight = analyze_pdf(resolved, page_range=prange)
 
+        file_name = Path(display_name).name if display_name and display_name.strip() else resolved.name
         rec = _SessionRecord(
             session_id=sid,
-            file_name=resolved.name,
+            file_name=file_name,
             pdf_path=resolved,
             work_dir=work_dir,
             preflight=preflight,
@@ -213,7 +219,7 @@ class EngineWorkspaceStore:
         job_dir.mkdir(parents=True, exist_ok=True)
         assets_dir.mkdir(parents=True, exist_ok=True)
 
-        stem = rec.pdf_path.stem
+        stem = Path(rec.file_name).stem or rec.pdf_path.stem
         md_path = job_dir / f"{stem}.md"
         ir_path = job_dir / f"{stem}.ir.json"
 

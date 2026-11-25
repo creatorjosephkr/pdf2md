@@ -78,7 +78,11 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     @app.post("/api/sessions/open-path", response_model=SessionResponse)
     def open_path(req: OpenPathRequest) -> SessionResponse:
         try:
-            return store.create_session_from_path(Path(req.pdf_path), pages=req.pages)
+            return store.create_session_from_path(
+                Path(req.pdf_path),
+                pages=req.pages,
+                display_name=req.display_name,
+            )
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except Exception as exc:

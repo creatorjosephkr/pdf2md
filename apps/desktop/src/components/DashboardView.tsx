@@ -23,12 +23,20 @@ import type {
   ParserName,
   SessionResponse,
 } from "../types/engine";
-import { engineApi, isTauriRuntime, pickNativePdfPath, sourcePageUrl } from "../api/client";
+import {
+  engineApi,
+  isTauriRuntime,
+  pickNativePdfPath,
+  sourcePageUrl,
+  stagePdfForEngine,
+} from "../api/client";
 
 interface DashboardViewProps {
   session: SessionResponse | null;
   baseUrl: string;
   activeJob: JobStatusResponse | null;
+  engineReady: boolean;
+  engineStatusMessage?: string | null;
   onSessionLoaded: (session: SessionResponse) => void;
   onClearSession: () => void;
   onStartConvert: (req: ConvertRequest) => void;
@@ -46,6 +54,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   session,
   baseUrl,
   activeJob,
+  engineReady,
+  engineStatusMessage,
   onSessionLoaded,
   onClearSession,
   onStartConvert,
@@ -55,7 +65,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [dragging, setDragging] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [pendingPdfPath, setPendingPdfPath] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewPageNo, setPreviewPageNo] = useState(1);
+
+  const engineReadyRef = useRef(engineReady);
+  engineReadyRef.current = engineReady;
 
   const [parser, setParser] = useState<ParserName>("docling");
   const [imageMode, setImageMode] = useState<MarkdownImageMode>("folder");
@@ -104,9 +119,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const handleOpenPath = async (pdfPath: string) => {
     setErrorMsg(null);
+    if (!engineReadyRef.current) {
+      setPendingFile(null);
+      setPendingPdfPath(pdfPath);
+      return;
+    }
     setLoadingPdf(true);
     try {
-      const res = await engineApi.openPdfPath(pdfPath);
+      const staged = await stagePdfForEngine(pdfPath);
+      const res = staged
+        ? await engineApi.openPdfPath(staged.staged_path, null, staged.original_name)
+        : await engineApi.openPdfPath(pdfPath);
       onSessionLoaded(res);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
@@ -117,6 +140,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const handleUploadFile = async (file: File) => {
     setErrorMsg(null);
+    if (!engineReadyRef.current) {
+      setPendingPdfPath(null);
+      setPendingFile(file);
+      return;
+    }
     setLoadingPdf(true);
     try {
       const res = await engineApi.uploadPdf(file);
@@ -128,13 +156,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
+  useEffect(() => {
+    if (!engineReady) return;
+    if (pendingPdfPath) {
+      const path = pendingPdfPath;
+      setPendingPdfPath(null);
+      void handleOpenPath(path);
+    } else if (pendingFile) {
+      const f = pendingFile;
+      setPendingFile(null);
+      void handleUploadFile(f);
+    }
+  }, [engineReady, pendingPdfPath, pendingFile]);
+
   const handlePickFile = async () => {
+    setErrorMsg(null);
     if (isTauriRuntime()) {
-      const picked = await pickNativePdfPath();
-      if (picked) {
-        await handleOpenPath(picked);
+      try {
+        const picked = await pickNativePdfPath();
+        if (picked) {
+          await handleOpenPath(picked);
+        }
+        return;
+      } catch {
+        // Fallback to standard file input if native dialog fails
       }
-      return;
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -231,6 +277,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   PDF 파일 선택
                 </button>
               </div>
+              {(pendingPdfPath || pendingFile) && !engineReady ? (
+                <p className="mt-4 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-medium text-blue-800">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
+                  로컬 엔진 준비가 끝나면 선택한 PDF를 자동으로 불러옵니다...
+                </p>
+              ) : !engineReady ? (
+                <p className="mt-4 text-xs text-slate-500">
+                  {engineStatusMessage || "로컬 변환 엔진 준비 중입니다... 완료되면 바로 변환할 수 있습니다."}
+                </p>
+              ) : null}
             </>
           ) : (
             <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -325,6 +381,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 )}
               </div>
             </div>
+          )}
+
+          {(pendingPdfPath || pendingFile) && session && !engineReady && (
+            <p className="m-3 flex items-center gap-2 text-xs text-blue-800 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
+              로컬 엔진이 준비되는 대로 새 PDF를 자동으로 불러옵니다...
+            </p>
           )}
 
           {errorMsg && (
