@@ -64,23 +64,32 @@ jobs:
           prefix-key: "rust-${{ matrix.rust_target }}"
       - name: Clean Python bytecode caches
         run: find engine/src -name "__pycache__" -type d -exec rm -rf {} + || true
-      - name: Install frontend dependencies & build macOS DMG (${{ matrix.rust_target }})
+      - name: Install frontend dependencies & build macOS app (${{ matrix.rust_target }})
         run: |
           cd apps/desktop
           npm ci
-          CI=true npx tauri build --target "${{ matrix.rust_target }}" --bundles dmg
-      - name: Rename and upload macOS DMG to GitHub Release
+          npx tauri build --target "${{ matrix.rust_target }}" --bundles app
+      - name: Ad-hoc deep sign and package custom macOS DMG
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
           VERSION: ${{ needs.prepare-release.outputs.version }}
           RUST_TARGET: ${{ matrix.rust_target }}
           ASSET_SUFFIX: ${{ matrix.asset_suffix }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
-          DMG_SRC=$(find "apps/desktop/src-tauri/target/${RUST_TARGET}/release/bundle/dmg" -maxdepth 1 -name "*.dmg" | head -n 1)
-          test -n "$DMG_SRC"
+          APP_PATH="apps/desktop/src-tauri/target/${RUST_TARGET}/release/bundle/macos/PDF Eolgae.app"
+          test -d "$APP_PATH"
+          codesign --force --deep --sign "${APPLE_SIGNING_IDENTITY:--}" "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          python3 -m venv /tmp/dmgvenv
+          /tmp/dmgvenv/bin/pip install --quiet dmgbuild
           OUT_NAME="PDF_Eolgae_${VERSION}_${ASSET_SUFFIX}"
-          cp "$DMG_SRC" "$OUT_NAME"
+          /tmp/dmgvenv/bin/dmgbuild -s scripts/dmg_settings.py \
+            -D app="$APP_PATH" \
+            -D background="apps/desktop/src-tauri/dmg/dmg-background.png" \
+            -D icon="apps/desktop/src-tauri/icons/icon.icns" \
+            "PDF Eolgae" "$OUT_NAME"
           gh release upload "$TAG" "$OUT_NAME" --clobber
 
   build-windows:
