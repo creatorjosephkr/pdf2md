@@ -90,8 +90,12 @@ jobs:
           ASSET_SUFFIX: ${{ matrix.asset_suffix }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
-          APP_PATH="apps/desktop/src-tauri/target/${RUST_TARGET}/release/bundle/macos/PDF Eolgae.app"
-          test -d "$APP_PATH"
+          BUNDLE_DIR="apps/desktop/src-tauri/target/${RUST_TARGET}/release/bundle/macos"
+          SRC_APP="${BUNDLE_DIR}/PDF Eolgae.app"
+          APP_PATH="${BUNDLE_DIR}/PDF 얼개.app"
+          test -d "$SRC_APP"
+          rm -rf "$APP_PATH"
+          mv "$SRC_APP" "$APP_PATH"
           codesign --force --deep --sign "${APPLE_SIGNING_IDENTITY:--}" "$APP_PATH"
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           python3 -m venv /tmp/dmgvenv
@@ -99,7 +103,7 @@ jobs:
           OUT_NAME="PDF_Eolgae_${VERSION}_${ASSET_SUFFIX}"
           /tmp/dmgvenv/bin/dmgbuild -s scripts/dmg_settings.py \
             -D app="$APP_PATH" \
-            -D app_name="PDF Eolgae.app" \
+            -D app_name="PDF 얼개.app" \
             -D background="apps/desktop/src-tauri/dmg/dmg-background.png" \
             -D icon="apps/desktop/src-tauri/icons/icon.icns" \
             "PDF 얼개" "$OUT_NAME"

@@ -1,6 +1,7 @@
 """dmgbuild settings for PDF 얼개 (PDF Eolgae) macOS DMG."""
 
 import os
+import unicodedata
 
 app_path = defines["app"]
 app_name = defines.get("app_name", os.path.basename(app_path))
@@ -29,6 +30,7 @@ icon_size = 112
 text_size = 13
 
 icon_locations = {
-    app_name: (180, 185),
+    unicodedata.normalize("NFC", app_name): (180, 185),
+    unicodedata.normalize("NFD", app_name): (180, 185),
     "Applications": (480, 185),
 }
