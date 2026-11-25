@@ -64,6 +64,18 @@ jobs:
           prefix-key: "rust-${{ matrix.rust_target }}"
       - name: Clean Python bytecode caches
         run: find engine/src -name "__pycache__" -type d -exec rm -rf {} + || true
+      - name: Download bundled uv binary (${{ matrix.rust_target }})
+        env:
+          RUST_TARGET: ${{ matrix.rust_target }}
+        run: |
+          rm -rf /tmp/uv_dl && mkdir -p /tmp/uv_dl apps/desktop/src-tauri/vendor-bin
+          curl -fsSL "https://github.com/astral-sh/uv/releases/latest/download/uv-${RUST_TARGET}.tar.gz" -o /tmp/uv_dl/uv.tar.gz
+          tar -xzf /tmp/uv_dl/uv.tar.gz -C /tmp/uv_dl
+          UV_FOUND=$(find /tmp/uv_dl -type f -name "uv" | head -n 1)
+          test -n "$UV_FOUND"
+          cp "$UV_FOUND" apps/desktop/src-tauri/vendor-bin/uv
+          chmod 755 apps/desktop/src-tauri/vendor-bin/uv
+          xattr -c apps/desktop/src-tauri/vendor-bin/uv || true
       - name: Install frontend dependencies & build macOS app (${{ matrix.rust_target }})
         run: |
           cd apps/desktop
@@ -109,6 +121,16 @@ jobs:
       - name: Clean Python bytecode caches
         shell: bash
         run: find engine/src -name "__pycache__" -type d -exec rm -rf {} + || true
+      - name: Download bundled uv.exe (Windows x64)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:TEMP\uv_dl", "apps/desktop/src-tauri/vendor-bin" | Out-Null
+          $zipPath = "$env:TEMP\uv_dl\uv.zip"
+          Invoke-WebRequest -Uri "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip" -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath "$env:TEMP\uv_dl" -Force
+          $uvExe = Get-ChildItem -Path "$env:TEMP\uv_dl" -Recurse -Filter "uv.exe" | Select-Object -First 1
+          if (-not $uvExe) { throw "uv.exe not found in archive" }
+          Copy-Item -Path $uvExe.FullName -Destination "apps/desktop/src-tauri/vendor-bin/uv.exe" -Force
       - name: Install frontend dependencies & build Windows x64 NSIS installer
         run: |
           cd apps/desktop

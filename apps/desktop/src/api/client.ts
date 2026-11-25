@@ -11,6 +11,7 @@ import type {
   ModelsOverviewResponse,
   ReconvertPageRequest,
   SessionResponse,
+  SidecarStatus,
   UpdateCheckResponse,
 } from "../types/engine";
 
@@ -223,6 +224,24 @@ export async function getAppMeta(): Promise<AppMeta> {
     }
   }
   return { os: "web", arch: "web", version: "1.0.0", is_tauri: false };
+}
+
+export async function getSidecarStatus(): Promise<SidecarStatus | null> {
+  if (!isTauriRuntime()) return null;
+  try {
+    return await invoke<SidecarStatus>("get_sidecar_status");
+  } catch {
+    return null;
+  }
+}
+
+export async function restartSidecar(): Promise<void> {
+  if (!isTauriRuntime()) return;
+  try {
+    await invoke("restart_sidecar");
+  } catch {
+    // Ignore invoke failure
+  }
 }
 
 export async function openExternalUrl(url: string): Promise<void> {

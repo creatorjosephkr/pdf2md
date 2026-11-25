@@ -38,7 +38,9 @@
     ],
     "resources": {
       "../../../engine/pyproject.toml": "engine/pyproject.toml",
-      "../../../engine/src": "engine/src"
+      "../../../engine/uv.lock": "engine/uv.lock",
+      "../../../engine/src": "engine/src",
+      "vendor-bin": "bin"
     },
     "publisher": "creatorjosephkr",
     "copyright": "Copyright © 2026 creatorjosephkr",

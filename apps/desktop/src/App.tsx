@@ -11,9 +11,16 @@ import type {
   HealthResponse,
   JobStatusResponse,
   SessionResponse,
+  SidecarStatus,
   UpdateCheckResponse,
 } from "./types/engine";
-import { engineApi, getAppMeta, getEngineBaseUrl } from "./api/client";
+import {
+  engineApi,
+  getAppMeta,
+  getEngineBaseUrl,
+  getSidecarStatus,
+  restartSidecar,
+} from "./api/client";
 import { DashboardView } from "./components/DashboardView";
 import { StudioView } from "./components/StudioView";
 import { ModelsView } from "./components/ModelsView";
@@ -27,6 +34,7 @@ export const App: React.FC = () => {
   const [baseUrl, setBaseUrl] = useState<string>("http://127.0.0.1:18765");
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [connecting, setConnecting] = useState<boolean>(true);
+  const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [activeJob, setActiveJob] = useState<JobStatusResponse | null>(null);
   const [appVersion, setAppVersion] = useState<string>("1.0.0");
@@ -63,34 +71,70 @@ export const App: React.FC = () => {
     [appVersion]
   );
 
-  const checkHealth = async () => {
+  const connectToEngine = useCallback(async (restartFirst = false) => {
     setConnecting(true);
-    try {
-      const url = await getEngineBaseUrl();
-      setBaseUrl(url);
-      const h = await engineApi.getHealth();
-      setHealth(h);
-    } catch {
-      setHealth(null);
-    } finally {
-      setConnecting(false);
+    setHealth(null);
+    if (restartFirst) {
+      await restartSidecar();
+    }
+
+    let idleAttempts = 0;
+    for (let tick = 0; tick < 600; tick += 1) {
+      const st = await getSidecarStatus();
+      if (st) setSidecarStatus(st);
+
+      try {
+        const url = await getEngineBaseUrl();
+        setBaseUrl(url);
+        const h = await engineApi.getHealth();
+        setHealth(h);
+        setConnecting(false);
+        return h;
+      } catch {
+        if (st?.phase === "error") {
+          setConnecting(false);
+          return null;
+        }
+        if (!st || (st.phase !== "bootstrapping" && st.phase !== "starting")) {
+          idleAttempts += 1;
+          if (idleAttempts >= 30) {
+            setConnecting(false);
+            return null;
+          }
+        } else {
+          idleAttempts = 0;
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+    setConnecting(false);
+    return null;
+  }, []);
+
+  const checkHealth = async () => {
+    const h = await connectToEngine(true);
+    if (h) {
+      void runUpdateCheck(appVersion);
     }
   };
 
   useEffect(() => {
     let cancelled = false;
-    let attempts = 0;
 
     const boot = async () => {
       const meta = await getAppMeta();
       if (!cancelled && meta.version) {
         setAppVersion(meta.version);
       }
-      while (!cancelled && attempts < 15) {
-        attempts += 1;
+
+      let idleAttempts = 0;
+      for (let tick = 0; tick < 600 && !cancelled; tick += 1) {
+        const st = await getSidecarStatus();
+        if (!cancelled && st) setSidecarStatus(st);
+
         try {
           const url = await getEngineBaseUrl();
-          setBaseUrl(url);
+          if (!cancelled) setBaseUrl(url);
           const h = await engineApi.getHealth();
           if (!cancelled) {
             setHealth(h);
@@ -99,7 +143,20 @@ export const App: React.FC = () => {
           }
           return;
         } catch {
-          await new Promise((r) => setTimeout(r, 600));
+          if (st?.phase === "error") {
+            if (!cancelled) setConnecting(false);
+            return;
+          }
+          if (!st || (st.phase !== "bootstrapping" && st.phase !== "starting")) {
+            idleAttempts += 1;
+            if (idleAttempts >= 30) {
+              if (!cancelled) setConnecting(false);
+              return;
+            }
+          } else {
+            idleAttempts = 0;
+          }
+          await new Promise((r) => setTimeout(r, 1000));
         }
       }
       if (!cancelled) setConnecting(false);
@@ -205,9 +262,11 @@ export const App: React.FC = () => {
         {/* Sidecar Engine Status Pill, Update Check & Sponsor */}
         <div className="flex items-center gap-2.5 text-xs">
           {connecting ? (
-            <span className="inline-flex items-center gap-1.5 text-slate-500">
+            <span className="inline-flex items-center gap-1.5 text-slate-600">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
-              로컬 엔진 연결 중...
+              {sidecarStatus?.phase === "bootstrapping"
+                ? "엔진 최초 설치 중..."
+                : "로컬 엔진 연결 중..."}
             </span>
           ) : health ? (
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
@@ -260,6 +319,38 @@ export const App: React.FC = () => {
           </button>
         </div>
       </header>
+
+      {/* First-Run Bootstrap or Sidecar Error Banner */}
+      {!health && sidecarStatus && (sidecarStatus.phase === "bootstrapping" || sidecarStatus.phase === "error") && (
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2 border-b px-5 py-2 text-xs ${
+            sidecarStatus.phase === "error"
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-blue-200 bg-blue-50 text-blue-900"
+          }`}
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            {sidecarStatus.phase === "bootstrapping" && (
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-blue-600" />
+            )}
+            <span className="font-semibold">{sidecarStatus.message}</span>
+            {sidecarStatus.last_log && (
+              <span className="hidden truncate font-mono text-[11px] opacity-75 md:inline max-w-[460px]">
+                {sidecarStatus.last_log}
+              </span>
+            )}
+          </div>
+          {sidecarStatus.phase === "error" && (
+            <button
+              type="button"
+              onClick={() => void checkHealth()}
+              className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer"
+            >
+              엔진 재시작
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 min-h-0 overflow-y-auto">

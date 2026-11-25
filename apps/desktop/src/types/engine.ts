@@ -169,6 +169,13 @@ export interface AppMeta {
   is_tauri: boolean;
 }
 
+export interface SidecarStatus {
+  phase: "idle" | "bootstrapping" | "starting" | "running" | "error";
+  message: string;
+  log_path: string | null;
+  last_log: string | null;
+}
+
 export interface UpdateCheckResponse {
   status: "update_available" | "up_to_date" | "no_release" | "error";
   current_version: string;
