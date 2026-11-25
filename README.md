@@ -49,4 +49,5 @@ npm run tauri dev
 
 ### 릴리즈 빌드 산출물 명명 규칙
 * macOS (Apple Silicon): `PDF_Eolgae_<version>_macOS_arm64.dmg`
+* macOS (Intel): `PDF_Eolgae_<version>_macOS_x64.dmg`
 * Windows (64-bit): `PDF_Eolgae_<version>_Windows_x64.exe`
