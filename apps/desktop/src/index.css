@@ -231,3 +231,60 @@
   padding: 0.4rem 0;
   margin: 0.9rem 0;
 }
+
+/* Dedicated PDF Print Portal (hidden on screen, sole output on print) */
+#pdf-print-root {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #root {
+    display: none !important;
+  }
+
+  #pdf-print-root {
+    display: block !important;
+    width: 100%;
+    background: #ffffff;
+  }
+
+  .pdf-print-page {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    page-break-after: always;
+    break-after: page;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    overflow: hidden;
+  }
+
+  .pdf-print-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .pdf-print-page img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
+}

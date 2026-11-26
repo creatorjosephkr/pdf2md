@@ -634,6 +634,45 @@ fn stage_pdf_for_engine(app_handle: tauri::AppHandle, source_path: String) -> Re
 }
 
 #[tauri::command]
+fn set_window_fullscreen(window: tauri::Window, fullscreen: bool) -> Result<(), String> {
+    window.set_fullscreen(fullscreen).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn open_file_in_system(path: String) -> Result<(), String> {
+    let target = Path::new(&path);
+    if !target.exists() {
+        return Err(format!("파일을 찾을 수 없습니다: {path}"));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let mut cmd = Command::new("cmd");
+        cmd.args(["/C", "start", "", &path]);
+        apply_no_window(&mut cmd);
+        cmd.spawn().map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn reveal_in_folder(path: String) -> Result<(), String> {
     let target = Path::new(&path);
     if !target.exists() {
@@ -717,6 +756,8 @@ pub fn run() {
             restart_sidecar,
             get_app_meta,
             stage_pdf_for_engine,
+            set_window_fullscreen,
+            open_file_in_system,
             reveal_in_folder
         ])
         .build(tauri::generate_context!())

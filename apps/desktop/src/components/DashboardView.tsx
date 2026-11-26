@@ -11,6 +11,8 @@ import {
   Languages,
   Loader2,
   Play,
+  Presentation,
+  Printer,
   RefreshCw,
   Trash2,
   Upload,
@@ -41,6 +43,8 @@ interface DashboardViewProps {
   onClearSession: () => void;
   onStartConvert: (req: ConvertRequest) => void;
   onOpenStudio: () => void;
+  onOpenPresentation: (pageNo: number) => void;
+  onOpenPrint: (pageNo: number) => void;
 }
 
 const LANG_LABELS: Record<string, string> = {
@@ -60,6 +64,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onClearSession,
   onStartConvert,
   onOpenStudio,
+  onOpenPresentation,
+  onOpenPrint,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -309,12 +315,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onOpenPresentation(previewPageNo)}
+                    disabled={loadingPdf}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 cursor-pointer"
+                    title="프레젠테이션 형식으로 크게보기"
+                  >
+                    <Presentation className="h-3.5 w-3.5" />
+                    크게보기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenPrint(previewPageNo)}
+                    disabled={loadingPdf}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                    title="불러온 PDF 인쇄"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    인쇄
+                  </button>
                   <button
                     type="button"
                     onClick={() => void handlePickFile()}
                     disabled={loadingPdf}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
                   >
                     <RefreshCw className={`h-3.5 w-3.5 ${loadingPdf ? "animate-spin" : ""}`} />
                     다시 첨부
@@ -326,7 +352,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       onClearSession();
                     }}
                     disabled={loadingPdf || isConverting}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 cursor-pointer"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     삭제
@@ -346,7 +372,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <img
                       src={sourcePageUrl(baseUrl, session.session_id, previewPageNo, 180)}
                       alt={`${session.file_name} ${previewPageNo}페이지 미리보기`}
-                      className="max-h-full max-w-full object-contain rounded-lg border border-slate-300/90 bg-white shadow-sm"
+                      onDoubleClick={() => onOpenPresentation(previewPageNo)}
+                      title="더블클릭하여 프레젠테이션 크게보기"
+                      className="max-h-full max-w-full object-contain rounded-lg border border-slate-300/90 bg-white shadow-sm cursor-zoom-in"
                     />
                   )}
                 </div>

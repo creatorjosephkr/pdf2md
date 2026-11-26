@@ -26,6 +26,9 @@ import { StudioView } from "./components/StudioView";
 import { ModelsView } from "./components/ModelsView";
 import { UpdateModal } from "./components/UpdateModal";
 import { SponsorIcon, SponsorModal } from "./components/SponsorModal";
+import { PdfPresentationModal } from "./components/PdfPresentationModal";
+import { PdfPrintModal } from "./components/PdfPrintModal";
+import { EngineBootstrapModal } from "./components/EngineBootstrapModal";
 
 type TabId = "dashboard" | "studio" | "models";
 
@@ -37,11 +40,14 @@ export const App: React.FC = () => {
   const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [activeJob, setActiveJob] = useState<JobStatusResponse | null>(null);
-  const [appVersion, setAppVersion] = useState<string>("1.0.0");
+  const [appVersion, setAppVersion] = useState<string>("1.0.1");
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
   const [showSponsorModal, setShowSponsorModal] = useState<boolean>(false);
+  const [presentationPage, setPresentationPage] = useState<number | null>(null);
+  const [printPage, setPrintPage] = useState<number | null>(null);
+  const [engineModalDismissed, setEngineModalDismissed] = useState<boolean>(false);
 
   const runUpdateCheck = useCallback(
     async (verOverride?: string) => {
@@ -112,6 +118,7 @@ export const App: React.FC = () => {
   }, []);
 
   const checkHealth = async () => {
+    setEngineModalDismissed(false);
     const h = await connectToEngine(true);
     if (h) {
       void runUpdateCheck(appVersion);
@@ -139,7 +146,7 @@ export const App: React.FC = () => {
           if (!cancelled) {
             setHealth(h);
             setConnecting(false);
-            void runUpdateCheck(meta.version || "1.0.0");
+            void runUpdateCheck(meta.version || "1.0.1");
           }
           return;
         } catch {
@@ -262,12 +269,17 @@ export const App: React.FC = () => {
         {/* Sidecar Engine Status Pill, Update Check & Sponsor */}
         <div className="flex items-center gap-2.5 text-xs">
           {connecting ? (
-            <span className="inline-flex items-center gap-1.5 text-slate-600">
+            <button
+              type="button"
+              onClick={() => setEngineModalDismissed(false)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+              title="로컬 엔진 준비 상태 자세히 보기"
+            >
               <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
               {sidecarStatus?.phase === "bootstrapping"
                 ? "엔진 최초 설치 중..."
                 : "로컬 엔진 연결 중..."}
-            </span>
+            </button>
           ) : health ? (
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -320,8 +332,11 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* First-Run Bootstrap or Sidecar Error Banner */}
-      {!health && sidecarStatus && (sidecarStatus.phase === "bootstrapping" || sidecarStatus.phase === "error") && (
+      {/* First-Run Bootstrap or Sidecar Error Banner (shown when modal is dismissed) */}
+      {!health &&
+        engineModalDismissed &&
+        sidecarStatus &&
+        (sidecarStatus.phase === "bootstrapping" || sidecarStatus.phase === "error") && (
         <div
           className={`flex flex-wrap items-center justify-between gap-2 border-b px-5 py-2 text-xs ${
             sidecarStatus.phase === "error"
@@ -371,6 +386,8 @@ export const App: React.FC = () => {
             }}
             onStartConvert={(req) => void handleStartConvert(req)}
             onOpenStudio={() => setTab("studio")}
+            onOpenPresentation={(pageNo) => setPresentationPage(pageNo)}
+            onOpenPrint={(pageNo) => setPrintPage(pageNo)}
           />
         )}
 
@@ -381,6 +398,8 @@ export const App: React.FC = () => {
             baseUrl={baseUrl}
             onJobUpdated={(updated) => setActiveJob(updated)}
             onBackToDashboard={() => setTab("dashboard")}
+            onOpenPresentation={(pageNo) => setPresentationPage(pageNo)}
+            onOpenPrint={(pageNo) => setPrintPage(pageNo)}
           />
         )}
 
@@ -399,6 +418,34 @@ export const App: React.FC = () => {
       <SponsorModal
         open={showSponsorModal}
         onClose={() => setShowSponsorModal(false)}
+      />
+
+      <PdfPresentationModal
+        open={presentationPage !== null}
+        session={session}
+        baseUrl={baseUrl}
+        initialPage={presentationPage ?? 1}
+        onClose={() => setPresentationPage(null)}
+        onOpenPrint={(pageNo) => {
+          setPresentationPage(null);
+          setPrintPage(pageNo);
+        }}
+      />
+
+      <PdfPrintModal
+        open={printPage !== null}
+        session={session}
+        baseUrl={baseUrl}
+        currentPage={printPage ?? 1}
+        onClose={() => setPrintPage(null)}
+      />
+
+      <EngineBootstrapModal
+        open={!health && !engineModalDismissed}
+        connecting={connecting}
+        sidecarStatus={sidecarStatus}
+        onRetry={() => void checkHealth()}
+        onDismiss={() => setEngineModalDismissed(true)}
       />
     </div>
   );

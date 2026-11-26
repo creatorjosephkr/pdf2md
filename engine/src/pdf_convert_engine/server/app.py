@@ -111,6 +111,21 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         except IndexError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.get("/api/sessions/{session_id}/source.pdf")
+    def get_source_pdf(session_id: str) -> FileResponse:
+        try:
+            rec = store.get_session(session_id)
+            if not rec.pdf_path.exists():
+                raise FileNotFoundError(f"PDF file not found: {rec.pdf_path}")
+            return FileResponse(
+                rec.pdf_path,
+                media_type="application/pdf",
+                content_disposition_type="inline",
+                filename=rec.file_name,
+            )
+        except (KeyError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
     @app.post("/api/jobs/convert", response_model=JobStatusResponse)
     def start_convert(req: ConvertRequest) -> JobStatusResponse:
         try:

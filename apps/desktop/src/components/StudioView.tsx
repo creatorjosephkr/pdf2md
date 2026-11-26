@@ -11,6 +11,8 @@ import {
   Loader2,
   Maximize2,
   PanelLeft,
+  Presentation,
+  Printer,
   RefreshCw,
   RotateCcw,
   X,
@@ -40,6 +42,8 @@ interface StudioViewProps {
   baseUrl: string;
   onJobUpdated: (job: JobStatusResponse) => void;
   onBackToDashboard: () => void;
+  onOpenPresentation: (pageNo: number) => void;
+  onOpenPrint: (pageNo: number) => void;
 }
 
 type ViewMode = "split" | "markdown" | "source";
@@ -60,6 +64,8 @@ export const StudioView: React.FC<StudioViewProps> = ({
   baseUrl,
   onJobUpdated,
   onBackToDashboard,
+  onOpenPresentation,
+  onOpenPrint,
 }) => {
   const pages = job.ir?.pages || [];
   const [activePageNo, setActivePageNo] = useState<number>(pages[0]?.page_no || 1);
@@ -364,6 +370,24 @@ export const StudioView: React.FC<StudioViewProps> = ({
               >
                 <Eye className="h-3.5 w-3.5" />
                 AI 영역
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenPresentation(activePage.page_no)}
+                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+                title="프레젠테이션 형식으로 크게보기"
+              >
+                <Presentation className="h-3.5 w-3.5" />
+                크게보기
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenPrint(activePage.page_no)}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                title="불러온 PDF 인쇄"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                인쇄
               </button>
             </>
           )}

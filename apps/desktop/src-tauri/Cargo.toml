@@ -1,6 +1,6 @@
 [package]
 name = "pdf-convert-studio"
-version = "1.0.0"
+version = "1.0.1"
 description = "PDF 얼개 (PDF Eolgae) — Academic PDF to Markdown & RTF Studio"
 authors = ["pdf-convert"]
 edition = "2021"

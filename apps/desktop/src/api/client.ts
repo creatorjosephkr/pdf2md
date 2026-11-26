@@ -171,6 +171,10 @@ export function sourcePageUrl(baseUrl: string, sessionId: string, pageNo: number
   return `${baseUrl}/api/sessions/${sessionId}/pages/${pageNo}/source.png?dpi=${dpi}`;
 }
 
+export function sourcePdfUrl(baseUrl: string, sessionId: string): string {
+  return `${baseUrl}/api/sessions/${sessionId}/source.pdf`;
+}
+
 export function downloadMarkdownUrl(
   baseUrl: string,
   jobId: string,
@@ -232,7 +236,7 @@ export async function getAppMeta(): Promise<AppMeta> {
       // Fallback below
     }
   }
-  return { os: "web", arch: "web", version: "1.0.0", is_tauri: false };
+  return { os: "web", arch: "web", version: "1.0.1", is_tauri: false };
 }
 
 export async function getSidecarStatus(): Promise<SidecarStatus | null> {
@@ -277,4 +281,37 @@ export async function openExternalUrl(url: string): Promise<void> {
     }
   }
   window.open(url, "_blank", "noopener,noreferrer");
+}
+
+export async function setWindowFullscreen(fullscreen: boolean): Promise<boolean> {
+  if (isTauriRuntime()) {
+    try {
+      await invoke("set_window_fullscreen", { fullscreen });
+      return true;
+    } catch {
+      // Fall back to browser Fullscreen API below
+    }
+  }
+  try {
+    if (fullscreen) {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+    } else if (document.fullscreenElement && document.exitFullscreen) {
+      await document.exitFullscreen();
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function openFileInSystem(path: string, fallbackUrl?: string): Promise<void> {
+  if (isTauriRuntime()) {
+    await invoke("open_file_in_system", { path });
+    return;
+  }
+  if (fallbackUrl) {
+    window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+  }
 }
